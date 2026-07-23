@@ -1,0 +1,590 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum UserStatus {
+  ACTIVE
+  SUSPENDED
+  DELETED
+}
+
+enum AuthProvider {
+  EMAIL
+  GOOGLE
+  APPLE
+  GITHUB
+}
+
+enum ThemePreference {
+  SYSTEM
+  LIGHT
+  DARK
+}
+
+enum TimeFormat {
+  HOUR_12
+  HOUR_24
+}
+
+enum WeekStartDay {
+  SUNDAY
+  MONDAY
+  SATURDAY
+}
+
+enum TodoListKind {
+  INBOX
+  STANDARD
+  SMART
+  ARCHIVED
+}
+
+enum TodoStatus {
+  ACTIVE
+  COMPLETED
+  ARCHIVED
+}
+
+enum TodoPriority {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+enum NoteFormat {
+  PLAIN_TEXT
+  MARKDOWN
+  RICH_TEXT
+}
+
+enum StickyColor {
+  YELLOW
+  BLUE
+  GREEN
+  PINK
+  PURPLE
+  ORANGE
+  GRAY
+}
+
+enum FocusSessionType {
+  WORK
+  SHORT_BREAK
+  LONG_BREAK
+}
+
+enum FocusSessionStatus {
+  RUNNING
+  PAUSED
+  COMPLETED
+  CANCELLED
+}
+
+enum CalendarEventStatus {
+  CONFIRMED
+  TENTATIVE
+  CANCELLED
+}
+
+enum RecurrenceFrequency {
+  NONE
+  DAILY
+  WEEKLY
+  MONTHLY
+  YEARLY
+}
+
+enum ReminderStatus {
+  SCHEDULED
+  SENT
+  SNOOZED
+  COMPLETED
+  CANCELLED
+}
+
+enum NotificationType {
+  REMINDER
+  TODO_DUE
+  EVENT_START
+  POMODORO_COMPLETE
+  SYSTEM
+}
+
+enum NotificationChannel {
+  IN_APP
+  PUSH
+  EMAIL
+}
+
+enum NotificationStatus {
+  PENDING
+  DELIVERED
+  READ
+  FAILED
+  DISMISSED
+}
+
+model User {
+  id              String       @id @default(uuid()) @db.Uuid
+  email           String       @unique(map: "users_email_key") @db.VarChar(320)
+  passwordHash    String?      @map("password_hash") @db.Text
+  authProvider    AuthProvider @default(EMAIL) @map("auth_provider")
+  oauthSubject    String?      @map("oauth_subject") @db.VarChar(255)
+  status          UserStatus   @default(ACTIVE)
+  emailVerifiedAt DateTime?    @map("email_verified_at") @db.Timestamptz(6)
+  lastLoginAt     DateTime?    @map("last_login_at") @db.Timestamptz(6)
+  deletedAt       DateTime?    @map("deleted_at") @db.Timestamptz(6)
+  createdAt       DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime     @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  profile           Profile?
+  settings          Settings?
+  pomodoroSettings  PomodoroSettings?
+  todoLists         TodoList[]
+  todos             Todo[]
+  notes             Note[]
+  stickyNotes       StickyNote[]
+  focusSessions     FocusSession[]
+  calendarEvents    CalendarEvent[]
+  reminders         Reminder[]
+  notifications     Notification[]
+  tags              Tag[]
+  todoTags          TodoTag[]
+  noteTags          NoteTag[]
+  stickyNoteTags    StickyNoteTag[]
+  calendarEventTags CalendarEventTag[]
+  noteTodos         NoteTodo[]
+  noteTodoLists     NoteTodoList[]
+  noteCalendarEvents NoteCalendarEvent[]
+
+  @@unique([authProvider, oauthSubject], map: "users_auth_provider_oauth_subject_key")
+  @@index([status, createdAt], map: "idx_users_status_created_at")
+  @@index([deletedAt], map: "idx_users_deleted_at")
+  @@map("users")
+}
+
+model Profile {
+  id          String   @id @default(uuid()) @db.Uuid
+  userId      String   @unique(map: "profiles_user_id_key") @map("user_id") @db.Uuid
+  displayName String   @map("display_name") @db.VarChar(120)
+  firstName   String?  @map("first_name") @db.VarChar(80)
+  lastName    String?  @map("last_name") @db.VarChar(80)
+  avatarUrl   String?  @map("avatar_url") @db.Text
+  bio         String?  @db.Text
+  locale      String   @default("en") @db.VarChar(16)
+  timezone    String   @default("UTC") @db.VarChar(64)
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@index([displayName], map: "idx_profiles_display_name")
+  @@map("profiles")
+}
+
+model Settings {
+  id                             String          @id @default(uuid()) @db.Uuid
+  userId                         String          @unique(map: "settings_user_id_key") @map("user_id") @db.Uuid
+  theme                          ThemePreference @default(SYSTEM)
+  timeFormat                     TimeFormat      @default(HOUR_12) @map("time_format")
+  weekStartDay                   WeekStartDay    @default(MONDAY) @map("week_start_day")
+  defaultCalendarView            String          @default("week") @map("default_calendar_view") @db.VarChar(24)
+  defaultTodoListId              String?         @map("default_todo_list_id") @db.Uuid
+  notificationsEnabled           Boolean         @default(true) @map("notifications_enabled")
+  quietHoursEnabled              Boolean         @default(false) @map("quiet_hours_enabled")
+  quietHoursStart                String?         @map("quiet_hours_start") @db.VarChar(5)
+  quietHoursEnd                  String?         @map("quiet_hours_end") @db.VarChar(5)
+  reduceNotificationsDuringFocus Boolean         @default(true) @map("reduce_notifications_during_focus")
+  metadata                       Json            @default("{}") @db.JsonB
+  createdAt                      DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt                      DateTime        @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  defaultTodoList TodoList? @relation("DefaultTodoList", fields: [defaultTodoListId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+
+  @@index([defaultTodoListId], map: "idx_settings_default_todo_list_id")
+  @@map("settings")
+}
+
+model PomodoroSettings {
+  id                    String   @id @default(uuid()) @db.Uuid
+  userId                String   @unique(map: "pomodoro_settings_user_id_key") @map("user_id") @db.Uuid
+  workMinutes           Int      @default(25) @map("work_minutes")
+  shortBreakMinutes     Int      @default(5) @map("short_break_minutes")
+  longBreakMinutes      Int      @default(15) @map("long_break_minutes")
+  sessionsUntilLongBreak Int     @default(4) @map("sessions_until_long_break")
+  autoStartBreaks       Boolean  @default(false) @map("auto_start_breaks")
+  autoStartWork         Boolean  @default(false) @map("auto_start_work")
+  soundEnabled          Boolean  @default(true) @map("sound_enabled")
+  createdAt             DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt             DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@map("pomodoro_settings")
+}
+
+model TodoList {
+  id        String       @id @default(uuid()) @db.Uuid
+  userId    String       @map("user_id") @db.Uuid
+  name      String       @db.VarChar(120)
+  slug      String       @db.VarChar(140)
+  kind      TodoListKind @default(STANDARD)
+  color     String?      @db.VarChar(24)
+  sortOrder Int          @default(0) @map("sort_order")
+  archivedAt DateTime?   @map("archived_at") @db.Timestamptz(6)
+  createdAt DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime     @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  user               User           @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  todos              Todo[]
+  noteTodoLists      NoteTodoList[]
+  defaultForSettings Settings[]     @relation("DefaultTodoList")
+
+  @@unique([userId, slug], map: "todo_lists_user_id_slug_key")
+  @@index([userId, kind], map: "idx_todo_lists_user_id_kind")
+  @@index([userId, archivedAt], map: "idx_todo_lists_user_id_archived_at")
+  @@map("todo_lists")
+}
+
+model Todo {
+  id                    String       @id @default(uuid()) @db.Uuid
+  userId                String       @map("user_id") @db.Uuid
+  listId                String       @map("list_id") @db.Uuid
+  parentTodoId          String?      @map("parent_todo_id") @db.Uuid
+  title                 String       @db.VarChar(240)
+  description           String?      @db.Text
+  status                TodoStatus   @default(ACTIVE)
+  priority              TodoPriority @default(MEDIUM)
+  dueAt                 DateTime?    @map("due_at") @db.Timestamptz(6)
+  dueAllDay             Boolean      @default(false) @map("due_all_day")
+  sortOrder             Int          @default(0) @map("sort_order")
+  completedAt           DateTime?    @map("completed_at") @db.Timestamptz(6)
+  archivedAt            DateTime?    @map("archived_at") @db.Timestamptz(6)
+  createdAt             DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt             DateTime     @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  user                    User           @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  list                    TodoList       @relation(fields: [listId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  parentTodo              Todo?          @relation("TodoSubtasks", fields: [parentTodoId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  subtasks                Todo[]         @relation("TodoSubtasks")
+  convertedFromStickyNote StickyNote?    @relation("StickyConvertedTodo")
+  focusSessions           FocusSession[]
+  reminders               Reminder[]
+  notifications           Notification[]
+  todoTags                TodoTag[]
+  noteTodos               NoteTodo[]
+
+  @@index([userId, listId, status, sortOrder], map: "idx_todos_user_id_list_id_status_sort_order")
+  @@index([userId, status, dueAt], map: "idx_todos_user_id_status_due_at")
+  @@index([userId, priority], map: "idx_todos_user_id_priority")
+  @@index([parentTodoId], map: "idx_todos_parent_todo_id")
+  @@index([completedAt], map: "idx_todos_completed_at")
+  @@map("todos")
+}
+
+model Note {
+  id          String     @id @default(uuid()) @db.Uuid
+  userId      String     @map("user_id") @db.Uuid
+  title       String     @db.VarChar(240)
+  body        String     @db.Text
+  format      NoteFormat @default(RICH_TEXT)
+  pinned      Boolean    @default(false)
+  archivedAt  DateTime?  @map("archived_at") @db.Timestamptz(6)
+  createdAt   DateTime   @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime   @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  user               User                @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  reminders          Reminder[]
+  noteTags           NoteTag[]
+  noteTodos          NoteTodo[]
+  noteTodoLists      NoteTodoList[]
+  noteCalendarEvents NoteCalendarEvent[]
+
+  @@index([userId, updatedAt], map: "idx_notes_user_id_updated_at")
+  @@index([userId, archivedAt], map: "idx_notes_user_id_archived_at")
+  @@index([userId, title], map: "idx_notes_user_id_title")
+  @@map("notes")
+}
+
+model StickyNote {
+  id                String      @id @default(uuid()) @db.Uuid
+  userId            String      @map("user_id") @db.Uuid
+  content           String      @db.Text
+  color             StickyColor @default(YELLOW)
+  positionX         Int         @default(0) @map("position_x")
+  positionY         Int         @default(0) @map("position_y")
+  width             Int         @default(240)
+  height            Int         @default(240)
+  pinned            Boolean     @default(false)
+  convertedToTodoId String?     @unique(map: "sticky_notes_converted_to_todo_id_key") @map("converted_to_todo_id") @db.Uuid
+  archivedAt        DateTime?   @map("archived_at") @db.Timestamptz(6)
+  createdAt         DateTime    @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime    @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  user            User            @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  convertedToTodo Todo?           @relation("StickyConvertedTodo", fields: [convertedToTodoId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  reminders       Reminder[]
+  stickyNoteTags  StickyNoteTag[]
+
+  @@index([userId, archivedAt, pinned], map: "idx_sticky_notes_user_id_archived_at_pinned")
+  @@index([userId, updatedAt], map: "idx_sticky_notes_user_id_updated_at")
+  @@map("sticky_notes")
+}
+
+model FocusSession {
+  id               String             @id @default(uuid()) @db.Uuid
+  userId           String             @map("user_id") @db.Uuid
+  todoId           String?            @map("todo_id") @db.Uuid
+  type             FocusSessionType   @default(WORK)
+  status           FocusSessionStatus @default(RUNNING)
+  startedAt        DateTime           @default(now()) @map("started_at") @db.Timestamptz(6)
+  pausedAt         DateTime?          @map("paused_at") @db.Timestamptz(6)
+  endedAt          DateTime?          @map("ended_at") @db.Timestamptz(6)
+  plannedMinutes   Int                @map("planned_minutes")
+  completedMinutes Int                @default(0) @map("completed_minutes")
+  pauseSeconds     Int                @default(0) @map("pause_seconds")
+  notes            String?            @db.Text
+  createdAt        DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime           @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  todo          Todo?          @relation(fields: [todoId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  notifications Notification[]
+
+  @@index([userId, startedAt], map: "idx_focus_sessions_user_id_started_at")
+  @@index([userId, status], map: "idx_focus_sessions_user_id_status")
+  @@index([todoId, startedAt], map: "idx_focus_sessions_todo_id_started_at")
+  @@map("focus_sessions")
+}
+
+model CalendarEvent {
+  id                  String              @id @default(uuid()) @db.Uuid
+  userId              String              @map("user_id") @db.Uuid
+  title               String              @db.VarChar(240)
+  description         String?             @db.Text
+  location            String?             @db.VarChar(255)
+  startAt             DateTime            @map("start_at") @db.Timestamptz(6)
+  endAt               DateTime            @map("end_at") @db.Timestamptz(6)
+  allDay              Boolean             @default(false) @map("all_day")
+  status              CalendarEventStatus @default(CONFIRMED)
+  recurrenceFrequency RecurrenceFrequency @default(NONE) @map("recurrence_frequency")
+  recurrenceInterval  Int                 @default(1) @map("recurrence_interval")
+  recurrenceEndsAt    DateTime?           @map("recurrence_ends_at") @db.Timestamptz(6)
+  externalSource      String?             @map("external_source") @db.VarChar(80)
+  externalId          String?             @map("external_id") @db.VarChar(255)
+  createdAt           DateTime            @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt           DateTime            @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  user               User                @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  reminders          Reminder[]
+  notifications      Notification[]
+  calendarEventTags  CalendarEventTag[]
+  noteCalendarEvents NoteCalendarEvent[]
+
+  @@unique([userId, externalSource, externalId], map: "calendar_events_user_id_external_source_external_id_key")
+  @@index([userId, startAt, endAt], map: "idx_calendar_events_user_id_start_at_end_at")
+  @@index([userId, status, startAt], map: "idx_calendar_events_user_id_status_start_at")
+  @@index([userId, recurrenceFrequency], map: "idx_calendar_events_user_id_recurrence_frequency")
+  @@map("calendar_events")
+}
+
+model Reminder {
+  id                  String              @id @default(uuid()) @db.Uuid
+  userId              String              @map("user_id") @db.Uuid
+  todoId              String?             @map("todo_id") @db.Uuid
+  calendarEventId     String?             @map("calendar_event_id") @db.Uuid
+  noteId              String?             @map("note_id") @db.Uuid
+  stickyNoteId        String?             @map("sticky_note_id") @db.Uuid
+  title               String              @db.VarChar(240)
+  notes               String?             @db.Text
+  scheduledAt         DateTime            @map("scheduled_at") @db.Timestamptz(6)
+  status              ReminderStatus      @default(SCHEDULED)
+  recurrenceFrequency RecurrenceFrequency @default(NONE) @map("recurrence_frequency")
+  recurrenceInterval  Int                 @default(1) @map("recurrence_interval")
+  recurrenceEndsAt    DateTime?           @map("recurrence_ends_at") @db.Timestamptz(6)
+  snoozedUntil        DateTime?           @map("snoozed_until") @db.Timestamptz(6)
+  completedAt         DateTime?           @map("completed_at") @db.Timestamptz(6)
+  dismissedAt         DateTime?           @map("dismissed_at") @db.Timestamptz(6)
+  createdAt           DateTime            @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt           DateTime            @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  todo          Todo?          @relation(fields: [todoId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  calendarEvent CalendarEvent? @relation(fields: [calendarEventId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  note          Note?          @relation(fields: [noteId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  stickyNote    StickyNote?    @relation(fields: [stickyNoteId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  notifications Notification[]
+
+  @@index([userId, status, scheduledAt], map: "idx_reminders_user_id_status_scheduled_at")
+  @@index([todoId], map: "idx_reminders_todo_id")
+  @@index([calendarEventId], map: "idx_reminders_calendar_event_id")
+  @@index([noteId], map: "idx_reminders_note_id")
+  @@index([stickyNoteId], map: "idx_reminders_sticky_note_id")
+  @@map("reminders")
+}
+
+model Notification {
+  id              String             @id @default(uuid()) @db.Uuid
+  userId          String             @map("user_id") @db.Uuid
+  reminderId      String?            @map("reminder_id") @db.Uuid
+  todoId          String?            @map("todo_id") @db.Uuid
+  calendarEventId String?            @map("calendar_event_id") @db.Uuid
+  focusSessionId  String?            @map("focus_session_id") @db.Uuid
+  type            NotificationType
+  channel         NotificationChannel @default(IN_APP)
+  status          NotificationStatus  @default(PENDING)
+  title           String              @db.VarChar(240)
+  body            String?             @db.Text
+  scheduledAt     DateTime?           @map("scheduled_at") @db.Timestamptz(6)
+  deliveredAt     DateTime?           @map("delivered_at") @db.Timestamptz(6)
+  readAt          DateTime?           @map("read_at") @db.Timestamptz(6)
+  failedAt        DateTime?           @map("failed_at") @db.Timestamptz(6)
+  failureReason   String?             @map("failure_reason") @db.Text
+  actionPayload   Json?               @map("action_payload") @db.JsonB
+  createdAt       DateTime            @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime            @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  reminder      Reminder?      @relation(fields: [reminderId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  todo          Todo?          @relation(fields: [todoId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  calendarEvent CalendarEvent? @relation(fields: [calendarEventId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  focusSession  FocusSession?  @relation(fields: [focusSessionId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+
+  @@index([userId, status, scheduledAt], map: "idx_notifications_user_id_status_scheduled_at")
+  @@index([userId, type, createdAt], map: "idx_notifications_user_id_type_created_at")
+  @@index([reminderId], map: "idx_notifications_reminder_id")
+  @@index([todoId], map: "idx_notifications_todo_id")
+  @@index([calendarEventId], map: "idx_notifications_calendar_event_id")
+  @@index([focusSessionId], map: "idx_notifications_focus_session_id")
+  @@map("notifications")
+}
+
+model Tag {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  name      String   @db.VarChar(80)
+  slug      String   @db.VarChar(100)
+  color     String?  @db.VarChar(24)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  user              User               @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  todoTags          TodoTag[]
+  noteTags          NoteTag[]
+  stickyNoteTags    StickyNoteTag[]
+  calendarEventTags CalendarEventTag[]
+
+  @@unique([userId, slug], map: "tags_user_id_slug_key")
+  @@index([userId, name], map: "idx_tags_user_id_name")
+  @@map("tags")
+}
+
+model TodoTag {
+  userId     String   @map("user_id") @db.Uuid
+  todoId     String   @map("todo_id") @db.Uuid
+  tagId      String   @map("tag_id") @db.Uuid
+  assignedAt DateTime @default(now()) @map("assigned_at") @db.Timestamptz(6)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  todo Todo @relation(fields: [todoId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  tag  Tag  @relation(fields: [tagId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@id([todoId, tagId])
+  @@index([userId, tagId], map: "idx_todo_tags_user_id_tag_id")
+  @@map("todo_tags")
+}
+
+model NoteTag {
+  userId     String   @map("user_id") @db.Uuid
+  noteId     String   @map("note_id") @db.Uuid
+  tagId      String   @map("tag_id") @db.Uuid
+  assignedAt DateTime @default(now()) @map("assigned_at") @db.Timestamptz(6)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  note Note @relation(fields: [noteId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  tag  Tag  @relation(fields: [tagId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@id([noteId, tagId])
+  @@index([userId, tagId], map: "idx_note_tags_user_id_tag_id")
+  @@map("note_tags")
+}
+
+model StickyNoteTag {
+  userId       String   @map("user_id") @db.Uuid
+  stickyNoteId String   @map("sticky_note_id") @db.Uuid
+  tagId        String   @map("tag_id") @db.Uuid
+  assignedAt   DateTime @default(now()) @map("assigned_at") @db.Timestamptz(6)
+
+  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  stickyNote StickyNote @relation(fields: [stickyNoteId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  tag        Tag        @relation(fields: [tagId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@id([stickyNoteId, tagId])
+  @@index([userId, tagId], map: "idx_sticky_note_tags_user_id_tag_id")
+  @@map("sticky_note_tags")
+}
+
+model CalendarEventTag {
+  userId          String   @map("user_id") @db.Uuid
+  calendarEventId String   @map("calendar_event_id") @db.Uuid
+  tagId           String   @map("tag_id") @db.Uuid
+  assignedAt      DateTime @default(now()) @map("assigned_at") @db.Timestamptz(6)
+
+  user          User          @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  calendarEvent CalendarEvent @relation(fields: [calendarEventId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  tag           Tag           @relation(fields: [tagId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@id([calendarEventId, tagId])
+  @@index([userId, tagId], map: "idx_calendar_event_tags_user_id_tag_id")
+  @@map("calendar_event_tags")
+}
+
+model NoteTodo {
+  userId   String   @map("user_id") @db.Uuid
+  noteId   String   @map("note_id") @db.Uuid
+  todoId   String   @map("todo_id") @db.Uuid
+  linkedAt DateTime @default(now()) @map("linked_at") @db.Timestamptz(6)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  note Note @relation(fields: [noteId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  todo Todo @relation(fields: [todoId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@id([noteId, todoId])
+  @@index([userId, todoId], map: "idx_note_todos_user_id_todo_id")
+  @@map("note_todos")
+}
+
+model NoteTodoList {
+  userId     String   @map("user_id") @db.Uuid
+  noteId     String   @map("note_id") @db.Uuid
+  todoListId String   @map("todo_list_id") @db.Uuid
+  linkedAt   DateTime @default(now()) @map("linked_at") @db.Timestamptz(6)
+
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  note     Note     @relation(fields: [noteId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  todoList TodoList @relation(fields: [todoListId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@id([noteId, todoListId])
+  @@index([userId, todoListId], map: "idx_note_todo_lists_user_id_todo_list_id")
+  @@map("note_todo_lists")
+}
+
+model NoteCalendarEvent {
+  userId          String   @map("user_id") @db.Uuid
+  noteId          String   @map("note_id") @db.Uuid
+  calendarEventId String   @map("calendar_event_id") @db.Uuid
+  linkedAt        DateTime @default(now()) @map("linked_at") @db.Timestamptz(6)
+
+  user          User          @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  note          Note          @relation(fields: [noteId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  calendarEvent CalendarEvent @relation(fields: [calendarEventId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@id([noteId, calendarEventId])
+  @@index([userId, calendarEventId], map: "idx_note_calendar_events_user_id_calendar_event_id")
+  @@map("note_calendar_events")
+}
