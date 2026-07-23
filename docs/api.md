@@ -1,8 +1,8 @@
 # FocusTouch REST API Specification
 
-**Version:** 1.0  
-**Status:** Draft  
-**Last updated:** 2026-07-23  
+**Version:** 1.0
+**Status:** Draft
+**Last updated:** 2026-07-23
 **Owner:** Backend API
 
 ---
