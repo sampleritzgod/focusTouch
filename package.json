@@ -1,0 +1,26 @@
+{
+  "name": "focustouch",
+  "version": "1.0.0",
+  "description": "FocusTouch database design and Prisma schema.",
+  "private": true,
+  "directories": {
+    "doc": "docs"
+  },
+  "scripts": {
+    "prisma:validate": "prisma validate --schema prisma/schema.prisma"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/sampleritzgod/focusTouch.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/sampleritzgod/focusTouch/issues"
+  },
+  "homepage": "https://github.com/sampleritzgod/focusTouch#readme",
+  "devDependencies": {
+    "prisma": "^7.9.0"
+  }
+}
