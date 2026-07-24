@@ -1,26 +1,20 @@
 {
   "name": "focustouch",
   "version": "1.0.0",
-  "description": "FocusTouch database design and Prisma schema.",
   "private": true,
-  "directories": {
-    "doc": "docs"
-  },
+  "description": "FocusTouch — calendar, todos, reminders, notes, Pomodoro in one calm app.",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
   "scripts": {
-    "prisma:validate": "prisma validate --schema prisma/schema.prisma"
+    "dev": "npm run dev --workspace=@focustouch/api",
+    "dev:api": "npm run dev --workspace=@focustouch/api",
+    "dev:mobile": "npm run start --workspace=@focustouch/mobile",
+    "prisma:validate": "npm run prisma:validate --workspace=@focustouch/api",
+    "prisma:generate": "npm run prisma:generate --workspace=@focustouch/api"
   },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/sampleritzgod/focusTouch.git"
-  },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "bugs": {
-    "url": "https://github.com/sampleritzgod/focusTouch/issues"
-  },
-  "homepage": "https://github.com/sampleritzgod/focusTouch#readme",
-  "devDependencies": {
-    "prisma": "^7.9.0"
+  "engines": {
+    "node": ">=20"
   }
 }
